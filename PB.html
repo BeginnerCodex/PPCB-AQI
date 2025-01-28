@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Air Quality Table</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="refresh" content="900">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7fc;
+            color: #2c3e50;
+        }
+
+        .tab {
+            margin: 80px auto;
+            width: 90%;
+            max-width: 1200px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 15px;
+        }
+
+        td {
+            padding: 15px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        tbody tr {
+            background-color: #f9fafb;
+            transition: background-color 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #f0f4f8;
+        }
+
+        .aqi-cell {
+            padding: 5px 10px;
+            border-radius: 5px;
+            color: #532a2a;
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            margin: 20px 0;
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab">
+        <!-- <h2 style="text-align: center; margin-bottom: 20px;">Air Quality in Punjab</h2> -->
+        <table id="data-table" class="display">
+            <thead>
+                <tr>
+                    <th>City</th>
+                    <th>Station</th>
+                    <th>Last Update</th>
+                    <th>Air Quality Index</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically added here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function fetchAirQualityData() {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(this.responseText, "application/xml");
+                    populateTable(xmlDoc);
+                }
+            };
+            xhttp.open("GET", "https://app.cpcbccr.com/caaqms/rss_feed", true);
+            xhttp.setRequestHeader("Content-Type", "application/xml;charset=UTF-8");
+            xhttp.send();
+        }
+    
+        function getAirQualityCategory(aqiValue) {
+            const aqi = parseInt(aqiValue, 10);
+            if (aqi >= 0 && aqi <= 50) return { category: "Good", color: "green" };
+            if (aqi >= 51 && aqi <= 100) return { category: "Satisfactory", color: "lightgreen" };
+            if (aqi >= 101 && aqi <= 200) return { category: "Moderate", color: "yellow" };
+            if (aqi >= 201 && aqi <= 300) return { category: "Poor", color: "orange" };
+            if (aqi >= 301 && aqi <= 400) return { category: "Very Poor", color: "red" };
+            if (aqi >= 401 && aqi <= 500) return { category: "Severe", color: "purple" };
+            return { category: "Unknown", color: "gray" };
+        }
+    
+        function populateTable(xmlDoc) {
+    const tableBody = document.querySelector("#data-table tbody");
+
+    const stateElement = xmlDoc.querySelector("State[id='Punjab']");
+    if (stateElement) {
+        const cities = stateElement.querySelectorAll("City");
+        cities.forEach(cityElement => {
+            const city = cityElement.getAttribute("id") || "Unknown City";
+            console.log(`Processing city: ${city}`); // Debugging output
+
+            const stations = cityElement.querySelectorAll("Station");
+            stations.forEach(stationElement => {
+                const station = stationElement.getAttribute("id") || "Unknown Station";
+                const lastUpdate = stationElement.getAttribute("lastupdate") || "NA";
+
+                const airQualityIndexElement = stationElement.querySelector("Air_Quality_Index");
+                const airQualityIndex = airQualityIndexElement ? airQualityIndexElement.getAttribute("Value") : "NA";
+
+                let category = "NA";
+                let color = "gray";
+                if (airQualityIndex !== "NA") {
+                    const result = getAirQualityCategory(airQualityIndex);
+                    category = result.category;
+                    color = result.color;
+                }
+
+                console.log(`Station: ${station}, AQI: ${airQualityIndex}, Category: ${category}`); // Debugging output
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${city}</td>
+                    <td>${station}</td>
+                    <td>${lastUpdate}</td>
+                    <td>${airQualityIndex}</td>
+                    <td><span class="aqi-cell" style="background-color: ${color};">${category}</span></td>
+                `;
+                row.style.opacity = 0;
+                tableBody.appendChild(row);
+
+                setTimeout(() => {
+                    row.style.transition = "opacity 0.5s";
+                    row.style.opacity = 1;
+                }, 50);
+            });
+        });
+    } else {
+        console.error("Punjab state not found in XML document.");
+    }
+}
+
+        fetchAirQualityData();
+    </script>
+    
+    
+</body>
+</html>
